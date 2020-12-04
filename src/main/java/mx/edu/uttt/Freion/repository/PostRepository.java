@@ -8,9 +8,11 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long> {
     List<Post> findAll(Sort sort);
-    List<Post> findTopByUser(User user);
+    List<Post> findTopByUser(User user, Sort sort);
+    List<Post> findAllByUserIn(Set<User> users, Sort sort);
 }

@@ -62,9 +62,8 @@ public class PostController {
 
     @GetMapping("/follow")
     public ResponseEntity<List<PostResponse>> getFollowPosts(){
-        List<Post> posts = postService.findAll();
         User currentUser = authService.getCurrentUser();
-        posts = posts.stream().filter(post -> {return currentUser.getFollows().contains(post.getUser());}).collect(Collectors.toList());
+        List<Post> posts = postService.findAllByFollows(currentUser.getFollows());
         List<PostResponse> postsResponses = postService.canView(posts, currentUser);
         return new ResponseEntity<>(postsResponses, HttpStatus.OK);
     }

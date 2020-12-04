@@ -1,5 +1,6 @@
 package mx.edu.uttt.Freion.service;
 
+import javafx.geometry.Pos;
 import mx.edu.uttt.Freion.dto.PostResponse;
 import mx.edu.uttt.Freion.model.Comment;
 import mx.edu.uttt.Freion.model.Post;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,6 +33,10 @@ public class PostService {
         return postRepository.findAll(Sort.by("date").descending());
     }
 
+    public List<Post> findAllByFollows(Set<User> follows) {
+        return postRepository.findAllByUserIn(follows, Sort.by("date").descending());
+    };
+
     public Post findById(Long id){
         return postRepository.findById(id).get();
     }
@@ -40,7 +46,7 @@ public class PostService {
     }
 
     public List<Post> findByUser(User user){
-        return postRepository.findTopByUser(user);
+        return postRepository.findTopByUser(user, Sort.by("date").descending());
     }
 
     public List<PostResponse> canView(List<Post> posts, User user){
