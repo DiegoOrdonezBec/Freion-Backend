@@ -9,19 +9,17 @@ import javax.persistence.*;
 
 @Data
 @Entity
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Photo {
+@Builder
+public class Block {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(cascade = CascadeType.ALL)
-    private User user;
+    private User blocker;
 
-    private String url;
-
-    @ManyToOne(cascade = CascadeType.REFRESH)
-    private Privacy privacy;
+    @ManyToOne(cascade = CascadeType.ALL)
+    private User blocked;
 }

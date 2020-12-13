@@ -8,6 +8,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
+import java.util.Date;
 import java.util.Set;
 
 @Data
@@ -23,6 +24,13 @@ public class Conversation {
     @Column(nullable = false)
     private String name;
 
-    @ManyToMany(mappedBy = "conversations", cascade = CascadeType.REFRESH)
+    private Date lastMessage;
+
+    @ManyToMany(cascade = CascadeType.ALL)
+    @JoinTable(
+            name="member"
+            ,joinColumns = @JoinColumn(name = "conversation_id")
+            ,inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
     private Set<User> members;
 }

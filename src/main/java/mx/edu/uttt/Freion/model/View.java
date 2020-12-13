@@ -6,14 +6,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
-import java.time.Instant;
 
 @Data
 @Entity
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Post {
+@Builder
+public class View {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -21,16 +20,6 @@ public class Post {
     @ManyToOne(cascade = CascadeType.ALL)
     private User user;
 
-    @Column(nullable = false)
-    private Instant date;
-
-    @ManyToOne(cascade = CascadeType.REFRESH)
-    private ContentType contentType;
-
-    @Column(nullable = false)
-    @Lob
-    private String content;
-
-    @ManyToOne(cascade = CascadeType.REFRESH)
-    private Privacy privacy;
+    @ManyToOne(cascade = CascadeType.ALL)
+    private Post post;
 }

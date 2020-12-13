@@ -32,36 +32,4 @@ public class User {
     private String password;
 
     private String profilePhotoUrl;
-
-    @ManyToMany(cascade = CascadeType.ALL)
-    @JoinTable(
-            name="follow"
-            ,joinColumns = @JoinColumn(name = "follower_id")
-            ,inverseJoinColumns = @JoinColumn(name = "followed_id")
-    )
-    private Set<User> follows;
-
-    @ManyToMany(cascade = CascadeType.ALL)
-    @JoinTable(
-            name="block"
-            ,joinColumns = @JoinColumn(name = "blocker_id")
-            ,inverseJoinColumns = @JoinColumn(name = "blocked_id")
-    )
-    private Set<User> blocks;
-
-    @ManyToMany(cascade = CascadeType.ALL)
-    @JoinTable(
-            name="member"
-            ,joinColumns = @JoinColumn(name = "user_id")
-            ,inverseJoinColumns = @JoinColumn(name = "conversation_id")
-    )
-    private Set<Conversation> conversations;
-
-    @ManyToMany(cascade = CascadeType.ALL)
-    @JoinTable(
-            name="view"
-            ,joinColumns = @JoinColumn(name = "user_id")
-            ,inverseJoinColumns = @JoinColumn(name = "post_id")
-    )
-    private Set<Post> posts;
 }

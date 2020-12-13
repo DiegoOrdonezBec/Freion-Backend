@@ -1,19 +1,19 @@
 package mx.edu.uttt.Freion.service;
 
-import javafx.geometry.Pos;
+import mx.edu.uttt.Freion.dto.PostRequest;
 import mx.edu.uttt.Freion.dto.PostResponse;
-import mx.edu.uttt.Freion.model.Comment;
 import mx.edu.uttt.Freion.model.Post;
 import mx.edu.uttt.Freion.model.User;
-import mx.edu.uttt.Freion.repository.CommentRepository;
-import mx.edu.uttt.Freion.repository.PostRepository;
+import mx.edu.uttt.Freion.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,49 +25,128 @@ public class PostService {
     @Autowired
     private CommentRepository commentRepository;
 
-    public void save(Post post){
-        postRepository.save(post);
+    @Autowired
+    private OpinionRepository opinionRepository;
+
+    @Autowired
+    private ViewRepository viewRepository;
+
+    @Autowired
+    private AuthService authService;
+
+    @Autowired
+    private ContentTypeRepository contentTypeRepository;
+
+    @Autowired
+    private PrivacyRepository privacyRepository;
+
+    @Autowired
+    private FollowRepository followRepository;
+
+    @Autowired
+    private BlockRepository blockRepository;
+
+    public ResponseEntity<Void> createPost(PostRequest postRequest){
+        try{
+            Post post = Post.builder()
+                    .user(authService.getCurrentUser())
+                    .date(Instant.now())
+                    .contentType(contentTypeRepository.findByValue(postRequest.getContentType()).orElse(null))
+                    .content(postRequest.getContent())
+                    .privacy(privacyRepository.findByValue(postRequest.getPrivacy()).orElse(null))
+                    .build();
+
+            postRepository.save(post);
+
+            return new ResponseEntity<>(HttpStatus.CREATED);
+        }catch(Exception e){
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 
-    public List<Post> findAll(){
-        return postRepository.findAll(Sort.by("date").descending());
+    public ResponseEntity<List<PostResponse>> getAllPost(){
+        try{
+            List<Post> posts = postRepository.findAll();
+            User currentUser = authService.getCurrentUser();
+            List<PostResponse> postsResponses = preparePost(posts, currentUser);
+            return new ResponseEntity<>(postsResponses, HttpStatus.OK);
+        }catch (Exception e){
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 
-    public List<Post> findAllByFollows(Set<User> follows) {
-        return postRepository.findAllByUserIn(follows, Sort.by("date").descending());
-    };
+    public ResponseEntity<List<PostResponse>> getFollowPosts(){
+        try{
+            User currentUser = authService.getCurrentUser();
+            List<User> follows = followRepository.findByFollowerUsername(currentUser.getUsername()).stream()
+                    .map(follow -> follow.getFollowed())
+                    .collect(Collectors.toList());
+            List<Post> posts = postRepository.findByUserIn(follows, Sort.by("date").descending());
+            List<PostResponse> postsResponses = preparePost(posts, currentUser);
+            return new ResponseEntity<>(postsResponses, HttpStatus.OK);
+        }catch (Exception e){
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
 
-    public Post findById(Long id){
-        return postRepository.findById(id).get();
     }
 
-    public void deleteById(Long id){
-        postRepository.deleteById(id);
+    public ResponseEntity<List<PostResponse>> getAllPostByUsername(String username){
+        try{
+            List<Post> posts = postRepository.findByUserUsername(username, Sort.by("date").descending());
+            User currentUser = authService.getCurrentUser();
+            List<PostResponse> postsResponses = preparePost(posts, currentUser);
+            return new ResponseEntity<>(postsResponses, HttpStatus.OK);
+        }catch (Exception e){
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 
-    public List<Post> findByUser(User user){
-        return postRepository.findTopByUser(user, Sort.by("date").descending());
+    public ResponseEntity<Void> deletePostById(Long id){
+        try{
+            Post post = postRepository.findById(id).orElse(null);
+            if(post != null && post.getUser().equals(authService.getCurrentUser())){
+                postRepository.deleteById(post.getId());
+                return new ResponseEntity<>(HttpStatus.OK);
+            }
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }catch (Exception e){
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 
-    public List<PostResponse> canView(List<Post> posts, User user){
+    private List<PostResponse> preparePost(List<Post> posts, User user){
         List<PostResponse> postsResponses = posts.stream()
                 .filter(post -> {
-                    Boolean canView = true;
-                    if(post.getUser().getBlocks().contains(user) || user.getBlocks().contains(post.getUser())){
-                        canView = false;
-                    }
-                    if(post.getPrivacy().getValue().equals("ONLY_FOLLOWERS")){
-                        if(!user.getFollows().contains(post.getUser()) && !post.getUser().equals(user)){
-                            canView = false;
+                    boolean valid = true;
+                    if(!post.getUser().equals(user)){
+                        if(blockRepository.findByBlockerUsername(post.getUser().getUsername()).stream()
+                                .map(block -> block.getBlocked())
+                                .collect(Collectors.toList())
+                                .contains(user)
+                        ){
+                            valid = false;
+                        }
+                        if(blockRepository.findByBlockedUsername(post.getUser().getUsername()).stream()
+                                .map(block -> block.getBlocker())
+                                .collect(Collectors.toList())
+                                .contains(user)){
+                            valid = false;
+                        }
+                        if(post.getPrivacy().getValue().equals("ONLY_FOLLOWERS")){
+                            if(!followRepository.findByFollowedUsername(post.getUser().getUsername()).stream()
+                                    .map(follow -> follow.getFollower())
+                                    .collect(Collectors.toList())
+                                    .contains(user)){
+                                valid = false;
+                            }
+                        }
+                        if(post.getPrivacy().getValue().equals("PRIVATE")){
+                            valid = false;
                         }
                     }
-                    if(post.getPrivacy().getValue().equals("PRIVATE")){
-                        if(!post.getUser().equals(user)){
-                            canView = false;
-                        }
-                    }
-                    return canView;
-                }).map(post -> {
+                    return valid;
+                })
+                .map(post -> {
                     return PostResponse.builder()
                             .id(post.getId())
                             .userPhotoUrl(post.getUser().getProfilePhotoUrl())
@@ -77,9 +156,9 @@ public class PostService {
                             .contentType(post.getContentType().getValue())
                             .content(post.getContent())
                             .privacy(post.getPrivacy().getValue())
-                            .opinions(new Long(0))
+                            .opinions(opinionRepository.countByPost(post))
                             .comments(commentRepository.countByPost(post))
-                            .views(post.getViewers().stream().count())
+                            .views(viewRepository.countByPost(post))
                             .build();
                 }).collect(Collectors.toList());
 
